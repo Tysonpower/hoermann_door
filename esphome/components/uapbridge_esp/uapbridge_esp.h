@@ -35,7 +35,8 @@ class UAPBridge_esp : public esphome::uapbridge::UAPBridge {
     /*hoermann_action_test1         = 0x1020, //no reaction on my E3
       hoermann_action_test2         = 0x1040,
       hoermann_action_test3         = 0x1080,*/
-      hoermann_action_none          = 0x1000
+      hoermann_action_none          = 0x1000,
+      hoermann_action_estop         = 0x0000
     };
 
     void loop() override;
@@ -45,12 +46,14 @@ class UAPBridge_esp : public esphome::uapbridge::UAPBridge {
     void action_stop();
     void action_venting();
     void action_toggle_light();
+    void action_toggle_estop();
     void action_impulse();
 
     hoermann_state_t get_state();
     std::string get_state_string();
     void set_venting(bool state);
     void set_light(bool state);
+    void set_estop(bool state);
 
   protected:
     hoermann_state_t state = hoermann_state_stopped;
@@ -72,6 +75,7 @@ class UAPBridge_esp : public esphome::uapbridge::UAPBridge {
     uint32_t last_call       = 0;
     uint32_t last_call_slow   = 0;
     uint16_t broadcast_status = 0;
+    bool estop = false;
     bool ignore_next_event = false;     // will also ignore wrong edge detection after reset
     bool auto_correction_in_progress = false;
     uint8_t    rx_data[5]       = {0, 0, 0, 0, 0};

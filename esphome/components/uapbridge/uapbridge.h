@@ -39,6 +39,7 @@ class UAPBridge : public uart::UARTDevice, public Component {
     virtual void action_stop() = 0;
     virtual void action_venting() = 0;
     virtual void action_toggle_light() = 0;
+    virtual void action_toggle_estop() = 0;
     virtual void action_impulse() = 0;
 
     virtual hoermann_state_t get_state() = 0;
@@ -47,6 +48,8 @@ class UAPBridge : public uart::UARTDevice, public Component {
     bool get_venting_enabled() const { return this->venting_enabled; }
     virtual void set_light(bool state) = 0;
     bool get_light_enabled() const { return this->light_enabled; }
+    virtual void set_estop(bool state) = 0;
+    bool get_estop_enabled() const { return this->estop_enabled; }
     bool get_relay_enabled() const { return this->relay_enabled; }
     void set_relay_enabled(bool value) { this->relay_enabled = value; }
     bool get_error_state() const { return this->error_state; }
@@ -69,6 +72,7 @@ class UAPBridge : public uart::UARTDevice, public Component {
     // state variables
     bool venting_enabled = false;
     bool light_enabled = false;
+    bool estop_enabled = false;
     bool relay_enabled = false;
     bool error_state = false;
     bool prewarn_state = false;

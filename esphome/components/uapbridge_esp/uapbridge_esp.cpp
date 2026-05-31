@@ -156,16 +156,22 @@ void UAPBridge_esp::receive() {
       if (this->rx_data[3] == CMD_SLAVE_STATUS_REQUEST && length == 1 && calc_crc8(&this->rx_data[1], length + 3) == 0x00) {
         ESP_LOGVV(TAG, "Slave status request: %s", print_data(this->rx_data, 1, 5));
         ESP_LOGV(TAG, "->      Slave status request");
+        if(this->estop) {
+          this->next_action = hoermann_action_estop;
+        }
         counter = (this->rx_data[2] & 0xF0) + 0x10;
         this->tx_data[0] = UAP1_ADDR_MASTER;
         this->tx_data[1] = 0x03 | counter;
         this->tx_data[2] = CMD_SLAVE_STATUS_RESPONSE;
         this->tx_data[3] = (uint8_t)(this->next_action & 0xFF);
         this->tx_data[4] = (uint8_t)((this->next_action >> 8) & 0xFF);
-        this->next_action = hoermann_action_none;
+        if(!this->estop) {
+          this->next_action = hoermann_action_none;
+        }
         this->tx_data[5] = calc_crc8(this->tx_data, 5);
         this->tx_length = 6;
         this->send_time = millis();
+        ESP_LOGV(TAG, "Slave status request, answer: %s", print_data(this->tx_data, 1, 5));
       }
     }
     // Update valid_broadcast if a non-default message is received
@@ -250,6 +256,13 @@ void UAPBridge_esp::action_toggle_light() {
   this->set_command(true, hoermann_action_toggle_light);
 }
 
+void UAPBridge_esp::action_toggle_estop() {
+  ESP_LOGD(TAG, "Action: toggle estop called");
+  this->estop = !this->estop;
+  this->estop_enabled = this->estop;
+  this->handle_state_change(hoermann_state_unkown);
+}
+
 void UAPBridge_esp::action_impulse() {
   ESP_LOGD(TAG, "Action: impulse called");
   this->set_command(true, hoermann_action_impulse);
@@ -275,6 +288,14 @@ void UAPBridge_esp::set_venting(bool state) {
 void UAPBridge_esp::set_light(bool state) {
   this->set_command((this->light_enabled != state), hoermann_action_toggle_light);
   ESP_LOGD(TAG, "Light state set to %s", state ? "ON" : "OFF");
+}
+
+void UAPBridge_esp::set_estop(bool state) {
+  this->estop = state;
+  this->estop_enabled = this->estop;
+  ESP_LOGD(TAG, "EStop state set to %s", state ? "ON" : "OFF");
+  ESP_LOGD(TAG, "EStop state is %s", this->estop ? "ON" : "OFF");
+  this->handle_state_change(hoermann_state_unkown);
 }
 
 uint8_t UAPBridge_esp::calc_crc8(uint8_t *p_data, uint8_t length) {
@@ -309,35 +330,39 @@ char* UAPBridge_esp::print_data(uint8_t *p_data, uint8_t from, uint8_t to) {
 void UAPBridge_esp::handle_state_change(hoermann_state_t new_state) {
   this->state = new_state;
   ESP_LOGV(TAG, "State changed from %s to %d", this->state_string.c_str(), new_state);
-  switch (new_state) {
-    case hoermann_state_open:
-      this->state_string = "Open";
-      break;
-    case hoermann_state_closed:
-      this->state_string = "Closed";
-      break;
-    case hoermann_state_opening:
-      this->state_string = "Opening";
-      break;
-    case hoermann_state_closing:
-      this->state_string = "Closing";
-      break;
-    case hoermann_state_venting:
-      this->state_string = "Venting";
-      break;
-    case hoermann_state_stopped:
-      this->state_string = "Stopped";
-      break;
-    default:
-      this->state_string = "Error";
-      break;
+  if(this->estop) {
+      this->state_string = "Locked";  
+  } else {
+    switch (new_state) {
+      case hoermann_state_open:
+        this->state_string = "Open";
+        break;
+      case hoermann_state_closed:
+        this->state_string = "Closed";
+        break;
+      case hoermann_state_opening:
+        this->state_string = "Opening";
+        break;
+      case hoermann_state_closing:
+        this->state_string = "Closing";
+        break;
+      case hoermann_state_venting:
+        this->state_string = "Venting";
+        break;
+      case hoermann_state_stopped:
+        this->state_string = "Stopped";
+        break;
+      default:
+        this->state_string = "Error";
+        break;
+    }
   }
 
   this->data_has_changed = true;
 }
 
 void UAPBridge_esp::update_boolean_state(const char * name, bool &current_state, bool new_state) {
-  ESP_LOGV(TAG, "update_boolean_state: %s from %s to %s", name, current_state ? "true" : "false", new_state ? "true" : "false");
+  ESP_LOGVV(TAG, "update_boolean_state: %s from %s to %s", name, current_state ? "true" : "false", new_state ? "true" : "false");
   if (current_state != new_state) {
     current_state = new_state;
     this->data_has_changed = true;

@@ -53,5 +53,27 @@ void UAPBridgeSwitchLight::write_state(bool state) {
 void UAPBridgeSwitchLight::dump_config() {
     ESP_LOGCONFIG(TAG, "UAPBridgeSwitchLight");
 }
+
+void UAPBridgeSwitchEStop::setup() {
+    this->parent_->add_on_state_callback([this]() { this->on_event_triggered(); });
+}
+void UAPBridgeSwitchEStop::on_event_triggered() {
+  if (this->parent_->get_estop_enabled() != this->previousState_) {
+    ESP_LOGD(TAG, "UAPBridgeSwitchEStop::on_event_triggered() - adjusting state");
+    this->publish_state(this->parent_->get_estop_enabled());
+    this->previousState_ = this->parent_->get_estop_enabled();
+  }
+}
+void UAPBridgeSwitchEStop::write_state(bool state) {
+  ESP_LOGD(TAG, "UAPBridgeSwitchEStop::write_state() - write State triggered");
+  if (this->parent_->get_estop_enabled() != state){
+    this->parent_->action_toggle_estop();
+  }
+  //@TODO Check if make sens or not
+  publish_state(state);
+}
+void UAPBridgeSwitchEStop::dump_config() {
+    ESP_LOGCONFIG(TAG, "UAPBridgeSwitchEStop");
+}
 }
 }
